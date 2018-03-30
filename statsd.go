@@ -108,6 +108,15 @@ func (c *Client) Timing(bucket string, value interface{}) {
 	c.conn.metric(c.prefix, bucket, value, "ms", c.rate, c.tags)
 }
 
+// TimingWithTags ...
+func (c *Client) TimingWithTags(bucket string, value interface{}, tags map[string]string) {
+	if c.skip() {
+		return
+	}
+	strTags := joinTagsMap(c.conn.tagFormat, tags)
+	c.conn.metric(c.prefix, bucket, value, "ms", c.rate, strTags)
+}
+
 // Histogram sends an histogram value to a bucket.
 func (c *Client) Histogram(bucket string, value interface{}) {
 	if c.skip() {
@@ -130,6 +139,11 @@ func (c *Client) NewTiming() Timing {
 // Send sends the time elapsed since the creation of the Timing.
 func (t Timing) Send(bucket string) {
 	t.c.Timing(bucket, int(t.Duration()/time.Millisecond))
+}
+
+// SendWithTags sends the time elapsed since the creation of the Timing
+func (t Timing) SendWithTags(bucket string, tags map[string]string) {
+	t.c.TimingWithTags(bucket, float64(time.Since(t.start))/float64(time.Millisecond), tags)
 }
 
 // Duration returns the time elapsed since the creation of the Timing.

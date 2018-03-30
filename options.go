@@ -164,6 +164,15 @@ func Tags(tags ...string) Option {
 	})
 }
 
+func joinTagsMap(tf TagFormat, tags map[string]string) string {
+	statsTags := make([]tag, 0, len(tags)*2)
+	for k, v := range tags {
+		t := tag{K: k, V: v}
+		statsTags = append(statsTags, t)
+	}
+	return joinTags(tf, statsTags)
+}
+
 type tag struct {
 	K, V string
 }
@@ -191,6 +200,7 @@ const (
 	// Datadog tag format.
 	// See http://docs.datadoghq.com/guides/metrics/#tags
 	Datadog
+	// Librato tag format
 	Librato
 )
 

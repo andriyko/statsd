@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -261,7 +262,7 @@ func TestMaxPacketSize(t *testing.T) {
 		}
 
 		c.Increment(testKey)
-		got = conn.buf.String()
+		got = strings.TrimSuffix(conn.buf.String(), "\n")
 		want := "test_key:1|c"
 		if got != want {
 			t.Errorf("Invalid output, got %q, want %q", got, want)
@@ -269,7 +270,7 @@ func TestMaxPacketSize(t *testing.T) {
 		conn.buf.Reset()
 		c.Close()
 
-		got = conn.buf.String()
+		got = strings.TrimSuffix(conn.buf.String(), "\n")
 		if got != want {
 			t.Errorf("Invalid output, got %q, want %q", got, want)
 		}
@@ -342,10 +343,7 @@ func TestDialError(t *testing.T) {
 	}
 	defer func() { dialTimeout = net.DialTimeout }()
 
-	c, err := New()
-	if c == nil || !c.muted {
-		t.Error("New() did not return a muted client")
-	}
+	_, err := New()
 	if err == nil {
 		t.Error("New() did not return an error")
 	}
@@ -370,11 +368,11 @@ func TestUDPNotListening(t *testing.T) {
 	defer func() { dialTimeout = net.DialTimeout }()
 
 	c, err := New()
-	if c == nil || !c.muted {
-		t.Error("New() did not return a muted client")
+	if c.muted {
+		t.Error("client should not mute when attempting to connect to a non-listening port")
 	}
-	if err == nil {
-		t.Error("New should return an error")
+	if err != nil {
+		t.Error("attempting to connect to a non-listening port should not return an error")
 	}
 }
 
@@ -461,7 +459,8 @@ func getOutput(c *Client) string {
 	if c.conn.w == nil {
 		return ""
 	}
-	return getBuffer(c).buf.String()
+	out := getBuffer(c).buf.String()
+	return strings.TrimSuffix(out, "\n")
 }
 
 func mockDial(string, string, time.Duration) (net.Conn, error) {
@@ -479,7 +478,7 @@ func TestTCP(t *testing.T) {
 func testNetwork(t *testing.T, network string) {
 	received := make(chan bool)
 	server := newServer(t, network, testAddr, func(p []byte) {
-		s := string(p)
+		s := strings.TrimSuffix(string(p), "\n")
 		if s != "test_key:1|c" {
 			t.Errorf("invalid output: %q", s)
 		}

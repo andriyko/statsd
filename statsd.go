@@ -84,7 +84,7 @@ func (c *Client) Count(bucket string, n interface{}) {
 }
 
 func (c *Client) skip() bool {
-	return c.muted || (c.rate != 1 && randFloat() > c.rate)
+	return nil == c || c.muted || (c.rate != 1 && randFloat() > c.rate)
 }
 
 // Increment increment the given bucket. It is equivalent to Count(bucket, 1).
@@ -108,7 +108,7 @@ func (c *Client) Timing(bucket string, value interface{}) {
 	c.conn.metric(c.prefix, bucket, value, "ms", c.rate, c.tags)
 }
 
-// TimingWithTags ...
+// TimingWithTags sends a timing value with tags to a bucket.
 func (c *Client) TimingWithTags(bucket string, value interface{}, tags map[string]string) {
 	if c.skip() {
 		return
@@ -125,38 +125,17 @@ func (c *Client) Histogram(bucket string, value interface{}) {
 	c.conn.metric(c.prefix, bucket, value, "h", c.rate, c.tags)
 }
 
-// A Timing is an helper object that eases sending timing values.
-type Timing struct {
-	start time.Time
-	c     *Client
-}
-
-// NewTiming creates a new Timing.
-func (c *Client) NewTiming() Timing {
-	return Timing{start: now(), c: c}
-}
-
-// Send sends the time elapsed since the creation of the Timing.
-func (t Timing) Send(bucket string) {
-	t.c.Timing(bucket, int(t.Duration()/time.Millisecond))
-}
-
-// SendWithTags sends the time elapsed since the creation of the Timing
-func (t Timing) SendWithTags(bucket string, tags map[string]string) {
-	t.c.TimingWithTags(bucket, float64(time.Since(t.start))/float64(time.Millisecond), tags)
-}
-
-// Duration returns the time elapsed since the creation of the Timing.
-func (t Timing) Duration() time.Duration {
-	return now().Sub(t.start)
-}
-
 // Unique sends the given value to a set bucket.
 func (c *Client) Unique(bucket string, value string) {
 	if c.skip() {
 		return
 	}
 	c.conn.unique(c.prefix, bucket, value, c.tags)
+}
+
+// Muted tells whether the Clent is muted
+func (c *Client) Muted() bool {
+	return c.muted
 }
 
 // Flush flushes the Client's buffer.
@@ -180,4 +159,30 @@ func (c *Client) Close() {
 	c.conn.handleError(c.conn.w.Close())
 	c.conn.closed = true
 	c.conn.mu.Unlock()
+}
+
+// A Timing is an helper object that eases sending timing values.
+type Timing struct {
+	start time.Time
+	c     *Client
+}
+
+// NewTiming creates a new Timing.
+func (c *Client) NewTiming() Timing {
+	return Timing{start: now(), c: c}
+}
+
+// Send sends the time elapsed since the creation of the Timing.
+func (t Timing) Send(bucket string) {
+	t.c.Timing(bucket, int(t.Duration()/time.Millisecond))
+}
+
+// SendWithTags sends the time elapsed since the creation of the Timing
+func (t Timing) SendWithTags(bucket string, tags map[string]string) {
+	t.c.TimingWithTags(bucket, float64(t.Duration())/float64(time.Millisecond), tags)
+}
+
+// Duration returns the time elapsed since the creation of the Timing.
+func (t Timing) Duration() time.Duration {
+	return time.Since(t.start)
 }

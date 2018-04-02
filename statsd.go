@@ -105,6 +105,9 @@ func (c *Client) Timing(bucket string, value interface{}) {
 	if c.skip() {
 		return
 	}
+	if v, ok := value.(time.Duration); ok {
+		value = float64(v) / float64(time.Millisecond)
+	}
 	c.conn.metric(c.prefix, bucket, value, "ms", c.rate, c.tags)
 }
 
@@ -114,6 +117,9 @@ func (c *Client) TimingWithTags(bucket string, value interface{}, tags map[strin
 		return
 	}
 	strTags := joinTagsMap(c.conn.tagFormat, tags)
+	if v, ok := value.(time.Duration); ok {
+		value = float64(v) / float64(time.Millisecond)
+	}
 	c.conn.metric(c.prefix, bucket, value, "ms", c.rate, strTags)
 }
 
@@ -174,15 +180,15 @@ func (c *Client) NewTiming() Timing {
 
 // Send sends the time elapsed since the creation of the Timing.
 func (t Timing) Send(bucket string) {
-	t.c.Timing(bucket, int(t.Duration()/time.Millisecond))
+	t.c.Timing(bucket, t.Duration())
 }
 
 // SendWithTags sends the time elapsed since the creation of the Timing
 func (t Timing) SendWithTags(bucket string, tags map[string]string) {
-	t.c.TimingWithTags(bucket, float64(t.Duration())/float64(time.Millisecond), tags)
+	t.c.TimingWithTags(bucket, t.Duration, tags)
 }
 
 // Duration returns the time elapsed since the creation of the Timing.
 func (t Timing) Duration() time.Duration {
-	return time.Since(t.start)
+	return now().Sub(t.start)
 }
